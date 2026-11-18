@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f1013">
 <meta charset="utf-8">
-<script>const APP_VERSION='2.39.15';</script>
+<script>const APP_VERSION='2.39.17';</script>
 <script>try{document.documentElement.dataset.mode=localStorage.getItem("music-tracker-mode")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.mode="light"}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Music Tracker</title>
@@ -608,6 +608,18 @@ section[id^="view-"]:not(.hidden){animation:mIn .55s cubic-bezier(.2,.9,.25,1) b
 /* Telemóvel: menos elementos ao mesmo tempo */
 @media (max-width:700px){
 }
+
+/* Painel de admin */
+.adm{margin:0 0 16px;padding:16px 18px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+.adm h3{margin:0 0 4px;font-size:15px}
+.adm-hint{margin:0 0 12px;color:var(--muted);font-size:13px}
+.adm-row{display:flex;gap:8px;flex-wrap:wrap}
+.adm-row input{flex:1;min-width:180px;height:42px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 16px;font:inherit}
+.adm-out{margin-top:12px;font-size:13px;color:var(--muted)}
+.adm-out table{width:100%;border-collapse:collapse;color:var(--text)}
+.adm-out th,.adm-out td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.adm-out th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.adm-out .wrap{overflow-x:auto}
 </style>
 </head>
 <body>
@@ -776,7 +788,13 @@ section[id^="view-"]:not(.hidden){animation:mIn .55s cubic-bezier(.2,.9,.25,1) b
       <p class="eyebrow">Perfil</p>
       <h1 id="profName">Visitante</h1>
       <p class="hero-sub" id="profSub"></p>
-      <div class="inst-card" id="instCard" hidden>
+      <section class="adm" aria-labelledby="admTitle">
+  <h3 id="admTitle">Administração</h3>
+  <p class="adm-hint">Lista das contas criadas e do país de cada uma. Precisa do token de admin.</p>
+  <div class="adm-row"><input id="admTok" type="password" placeholder="Token de admin" autocomplete="off" aria-label="Token de admin"><button class="btn primary" id="admOpen" type="button">Abrir painel</button></div>
+  <div id="admOut" class="adm-out" aria-live="polite"></div>
+</section>
+<div class="inst-card" id="instCard" hidden>
   <div><b>Instalar a app</b><small id="instText">No iPhone: abre no Safari, carrega em Partilhar e escolhe "Adicionar ao ecrã principal".</small></div>
   <button class="btn primary" id="instBtn" type="button" hidden>Instalar</button>
 </div>
@@ -905,6 +923,8 @@ function migrate(a){
 }
 /* ---------- Contas (locais, neste navegador) ---------- */
 const ACC_KEY = 'album-critico-accounts';
+// URL do servidor de contas (pasta backend/). Vazio = ainda não ligado.
+var ACCOUNTS_API = '';
 const SESS_KEY = 'album-critico-session';
 function getAccounts(){ try{ return JSON.parse(localStorage.getItem(ACC_KEY))||{}; }catch(e){ return {}; } }
 function setAccounts(acc){ try{ localStorage.setItem(ACC_KEY, JSON.stringify(acc)); }catch(e){} }
@@ -1745,6 +1765,7 @@ function openAuth(start='login', gate=false){
         const salt = uid();
         acc[email] = { salt, hash: await hashPw(pw, salt) };
         setAccounts(acc);
+        if (ACCOUNTS_API) fetch(ACCOUNTS_API + '/register', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email }) }).catch(()=>{});
       } else {
         const a = acc[email];
         if (!a || (await hashPw(pw, a.salt)) !== a.hash) { err('Email ou palavra-passe incorretos.'); return; }
@@ -1952,6 +1973,38 @@ setTab('home');
   setTimeout(check, 4000);
   setInterval(check, 10*60*1000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') check(); });
+})();
+</script>
+<script>
+/* Painel de admin: lista de contas e país (dados do servidor de contas) */
+(function(){
+  const btn=document.getElementById('admOpen'), tok=document.getElementById('admTok'), out=document.getElementById('admOut');
+  if(!btn) return;
+  function msg(t){ out.textContent=t; }
+  btn.addEventListener('click', async ()=>{
+    const t=tok.value.trim();
+    if(!t){ msg('Escreve o token de admin.'); return; }
+    if(!ACCOUNTS_API){ msg('O servidor de contas ainda não está ligado.'); return; }
+    msg('A carregar…');
+    try{
+      const r=await fetch(ACCOUNTS_API+'/admin/accounts',{headers:{Authorization:'Bearer '+t}});
+      if(r.status===401){ msg('Token incorreto.'); return; }
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const data=await r.json();
+      out.textContent='';
+      const head=document.createElement('p'); head.textContent='Total de contas: '+data.total; out.appendChild(head);
+      const wrap=document.createElement('div'); wrap.className='wrap';
+      const table=document.createElement('table');
+      table.innerHTML='<thead><tr><th scope="col">Email</th><th scope="col">Criada</th><th scope="col">País</th></tr></thead>';
+      const tb=document.createElement('tbody');
+      data.accounts.forEach(a=>{
+        const tr=document.createElement('tr');
+        [a.email, (a.createdAt||'').slice(0,10), a.country||'—'].forEach(v=>{ const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); });
+        tb.appendChild(tr);
+      });
+      table.appendChild(tb); wrap.appendChild(table); out.appendChild(wrap);
+    }catch(e){ msg('Não foi possível carregar a lista. '+(e.message||'')); }
+  });
 })();
 </script>
 </body>

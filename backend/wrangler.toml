@@ -1,0 +1,7 @@
+name = "musictracker-contas"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "ACCOUNTS"
+id = "PREENCHER_COM_O_ID_DA_KV"
