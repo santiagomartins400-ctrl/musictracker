@@ -1,0 +1,25 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar Playwright
+        run: |
+          mkdir -p /tmp/testes && cd /tmp/testes && npm init -y >/dev/null && npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - name: Servir o site
+        run: (python3 -m http.server 8000 >/dev/null 2>&1 &) && sleep 2
+      - name: Correr os testes
+        env:
+          NODE_PATH: /tmp/testes/node_modules
+        run: node tests/smoke.js http://localhost:8000/avaliador-albuns-v2.html

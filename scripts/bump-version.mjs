@@ -8,11 +8,9 @@ if (!/^\d+\.\d+\.\d+$/.test(next || '')) {
   process.exit(1);
 }
 
-const cur = JSON.parse(await readFile('desktop/package.json', 'utf8')).version;
+const cur = JSON.parse(await readFile('version.json', 'utf8')).version;
 const esc = s => s.replace(/\./g, '\\.');
 const files = [
-  ['desktop/package.json', [[new RegExp(`"version": "${esc(cur)}"`), `"version": "${next}"`]]],
-  ['desktop/README.md', [[new RegExp(`Setup ${esc(cur)}\\.exe`, 'g'), `Setup ${next}.exe`]]],
   ['.github/workflows/build-windows.yml', [
     [new RegExp(`tag_name: v${esc(cur)}`), `tag_name: v${next}`],
     [new RegExp(`name: Music Tracker ${esc(cur)}`), `name: Music Tracker ${next}`]]],

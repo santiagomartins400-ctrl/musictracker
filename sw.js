@@ -1,12 +1,15 @@
 /* Service worker: guarda a página e a app para funcionarem offline.
    Estratégia: cache primeiro para os ficheiros do site; rede para o resto (APIs de música e fotos). */
-const CACHE = 'album-critico-v2-61';
+const CACHE = 'album-critico-v2-62';
 const SHELL = [
   './',
   './index.html',
   './avaliador-albuns-v2.html',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './css/app.css',
+  './js/app.js',
+  './privacidade.html'
 ];
 
 self.addEventListener('install', e => {
