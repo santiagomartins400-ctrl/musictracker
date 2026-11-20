@@ -42,6 +42,8 @@ const SUGGESTIONS = ['Fado','Hip hop','Rock','Jazz','Pop','Música clássica','E
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// fetch com tempo limite: evita que a interface fique presa com a rede lenta
+const fetchT = (url, opts = {}, ms = 8000) => { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms); return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t)); };
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fmt = n => Number(n).toFixed(1);
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
@@ -115,7 +117,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const MB = 'https://musicbrainz.org/ws/2';
 async function mbGet(path){
   for(let t=0;t<2;t++){
-    const r = await fetch(MB + path);
+    const r = await fetchT(MB + path);
     if(r.ok) return r.json();
     if((r.status===503 || r.status===429) && t===0){ await sleep(1600); continue; }
     throw new Error('MusicBrainz ' + r.status);
@@ -253,7 +255,7 @@ async function findRgid(a){
 async function loadCovers(a){
   const rgid = a.rgid || await findRgid(a);
   if(!rgid) return [];
-  const r = await fetch(`https://coverartarchive.org/release-group/${rgid}`);
+  const r = await fetchT(`https://coverartarchive.org/release-group/${rgid}`);
   if(!r.ok) return [];
   const ca = await r.json();
   return (ca.images||[]).map(img=>({
@@ -298,7 +300,7 @@ function renderLibrary(){
   if(!list.length){ $('#libGrid').innerHTML=`<div class="empty"><b>Nada encontrado</b>Experimenta outra pesquisa ou filtro.</div>`; return; }
   $('#libGrid').innerHTML=list.map((a,i)=>{
     registry.set(a.id,a);
-    return `<article class="card" style="animation-delay:${Math.min(i,12)*25}ms" data-open="${a.id}">
+    return `<article class="card" style="animation-delay:${Math.min(i,12)*25}ms" data-open="${esc(a.id)}">
       ${coverHTML(a)}${playBtn(a)}
       ${a.fav?'<span class="fav">★</span>':''}
       <span class="badge-stars">${a.stars?starsRead(a.stars)+' '+fmt(a.stars):'Por avaliar'}</span>
@@ -395,7 +397,7 @@ async function fetchTracks(a){
   const term=`${a.artist||''} ${a.title||''}`.trim();
   const want=normT(a.title), artist=normT(a.artist);
   const artistOk=n=>{ const x=normT(n); return !artist || x.includes(artist) || artist.includes(x); };
-  const getJSON=async url=>{ const r=await fetch(url); if(!r.ok) throw new Error('itunes '+r.status); return r.json(); };
+  const getJSON=async url=>{ const r=await fetchT(url); if(!r.ok) throw new Error('itunes '+r.status); return r.json(); };
   let list=[];
   // 1) encontrar a edição do álbum e pedir TODAS as faixas dessa edição
   const sj=await getJSON(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=25&country=pt`);
@@ -1007,7 +1009,7 @@ function showPlayer(a,note){
   $('#pNote').textContent=note||'';
 }
 async function previewFor(a){
-  const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(a.artist+' '+a.title)}&entity=song&limit=10&country=pt`);
+  const r=await fetchT(`https://itunes.apple.com/search?term=${encodeURIComponent(a.artist+' '+a.title)}&entity=song&limit=10&country=pt`);
   if(!r.ok) throw new Error('itunes '+r.status);
   const j=await r.json();
   const nt=normTxt(a.title), res=(j.results||[]).filter(x=>x.previewUrl);
