@@ -71,6 +71,61 @@ const SESS_KEY = 'album-critico-session';
 function getAccounts(){ try{ return JSON.parse(localStorage.getItem(ACC_KEY))||{}; }catch(e){ return {}; } }
 function setAccounts(acc){ try{ localStorage.setItem(ACC_KEY, JSON.stringify(acc)); }catch(e){} }
 function currentUser(){ try{ return localStorage.getItem(SESS_KEY)||''; }catch(e){ return ''; } }
+/* ---------- Conta no servidor (ativa quando ACCOUNTS_API estiver preenchido) ---------- */
+const TOKEN_KEY = 'album-critico-token';
+var acctUser = null;                        // { email, twoFactor } da sessão atual
+const serverMode = () => !!ACCOUNTS_API;
+function getToken(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
+function setToken(t){ try{ if(t) localStorage.setItem(TOKEN_KEY,t); else localStorage.removeItem(TOKEN_KEY); }catch(e){} }
+async function acctApi(path, o={}){
+  const h={'content-type':'application/json'};
+  if(o.auth && getToken()) h.Authorization='Bearer '+getToken();
+  let r;
+  try{ r = await fetchT(ACCOUNTS_API+path, {method:o.method||'GET', headers:h, body:o.body?JSON.stringify(o.body):undefined}, 10000); }
+  catch(e){ return {ok:false, status:0, data:{error:'Sem ligação ao servidor. Tenta de novo.'}}; }
+  let data={}; try{ data = await r.json() || {}; }catch(e){}
+  return {ok:r.ok, status:r.status, data};
+}
+var syncTimer = null;
+function scheduleSync(){
+  if(!serverMode() || !getToken() || !currentUser()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushLibrary, 1500);
+}
+async function pushLibrary(){
+  if(!getToken()) return;
+  const r = await acctApi('/library', {method:'PUT', auth:true, body:{lib:db}});
+  if(r.status===401) sessionEnded();
+}
+async function pullLibrary(){
+  if(!getToken()) return;
+  const r = await acctApi('/library', {auth:true});
+  if(r.status===401){ sessionEnded(); return; }
+  if(!r.ok) return;                         // sem rede: fica a biblioteca local
+  if(Array.isArray(r.data.lib)){
+    db = r.data.lib;
+    try{ localStorage.setItem(libKey(), JSON.stringify(db)); }catch(e){}
+    refreshAll();
+  } else if(db.length){
+    await pushLibrary();                    // primeira vez nesta conta: sobe a biblioteca local
+  }
+}
+function sessionEnded(){
+  setToken(''); acctUser = null;
+  try{ localStorage.removeItem(SESS_KEY); }catch(e){}
+  db = load(); refreshAccountButton(); refreshSpotifyButton(); refreshAll(); refreshAccountSection();
+  toast('A sessão terminou. Inicia sessão de novo.');
+}
+async function restoreSession(){
+  if(!serverMode() || !getToken()) return;
+  const r = await acctApi('/auth/me', {auth:true});
+  if(r.status===401){ sessionEnded(); return; }
+  if(!r.ok) return;                         // sem rede: mantém a sessão local
+  acctUser = r.data.user;
+  try{ localStorage.setItem(SESS_KEY, acctUser.email); }catch(e){}
+  db = load(); await pullLibrary();
+  refreshAccountButton(); refreshSpotifyButton(); refreshAccountSection();
+}
 function libKey(){ const u=currentUser(); return u ? `${KEY}:${u}` : KEY; }
 async function hashPw(pw, salt){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt+':'+pw));
@@ -84,7 +139,7 @@ function load(){
   return seed();
 }
 let db = load();
-function persist(){ try{ localStorage.setItem(libKey(), JSON.stringify(db)); }catch(e){} }
+function persist(){ try{ localStorage.setItem(libKey(), JSON.stringify(db)); }catch(e){} scheduleSync(); }
 
 var playlists=[], libPl=null, queue=[], qIndex=-1, qAlbum=null, shuffleOn=false;
 const registry = new Map();
@@ -847,10 +902,14 @@ function loginAs(email){
   refreshAccountButton();
   refreshSpotifyButton();
   refreshAll();
+  refreshAccountSection();
 }
 function logout(){
+  if(serverMode() && getToken()) acctApi('/auth/logout', {method:'POST', auth:true});
+  setToken(''); acctUser = null; clearTimeout(syncTimer);
   try{ localStorage.removeItem(SESS_KEY); }catch(e){}
   db = load();
+  refreshAccountSection();
   refreshAccountButton();
   refreshSpotifyButton();
   refreshAll();
@@ -858,6 +917,7 @@ function logout(){
   openAuth('login', true);
 }
 function openAuth(start='login', gate=false){
+  if(serverMode()) return openAuthServer(start, gate);
   let mode=start;
   window.authGate = gate;
   openModal(`
@@ -907,7 +967,6 @@ function openAuth(start='login', gate=false){
         const salt = uid();
         acc[email] = { salt, hash: await hashPw(pw, salt) };
         setAccounts(acc);
-        if (ACCOUNTS_API) fetch(ACCOUNTS_API + '/register', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ email }) }).catch(()=>{});
       } else {
         const a = acc[email];
         if (!a || (await hashPw(pw, a.salt)) !== a.hash) { err('Email ou palavra-passe incorretos.'); return; }
@@ -920,12 +979,185 @@ function openAuth(start='login', gate=false){
     }
   };
 }
+function fEmail(v){ return `<div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" required autocomplete="email" value="${esc(v||'')}"></div>`; }
+function fPass(label, ac){ return `<div class="field"><label for="aPass">${label}</label><input id="aPass" type="password" required minlength="8" autocomplete="${ac}"></div>`; }
+function fCode(id, label){ return `<div class="field"><label for="${id}">${label}</label><input id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>`; }
+function openAuthServer(start='login', gate=false){
+  let step = start==='signup' ? 'signup' : 'login';
+  let mfaToken = '', resetEmail = '';
+  window.authGate = gate;
+  openModal(`
+    <div class="mhead"><h2 id="authTitle"></h2>${gate?'':'<button class="x" data-close aria-label="Fechar">×</button>'}</div>
+    <form class="mbody" id="authForm" novalidate>
+      <div id="stepBody"></div>
+      <p id="authErr" role="alert" style="color:#ff6b8a;min-height:20px;margin:0 0 10px"></p>
+      <div class="form-actions"><button type="submit" class="btn primary" id="aSubmit"></button></div>
+      <p class="auth-links" id="authLinks" style="text-align:center;margin-top:14px"></p>
+    </form>`);
+  const err = m => { document.getElementById('authErr').textContent = m || ''; };
+  const $$ = id => document.getElementById(id);
+  const link = (id, txt) => `<button type="button" class="btn ghost" id="${id}" style="padding:4px 8px">${txt}</button>`;
+  function paint(){
+    const T = {
+      login:  { t:'Entrar', b: fEmail(resetEmail) + fPass('Palavra-passe','current-password'), s:'Entrar', l: link('aSwitch','Criar conta') + ' · ' + link('aForgot','Esqueci a palavra-passe') },
+      signup: { t:'Criar conta', b: fEmail() + fPass('Palavra-passe (mínimo 8 caracteres)','new-password'), s:'Criar conta', l: link('aSwitch','Já tenho conta') },
+      mfa:    { t:'Verificação em duas etapas', b:'<p class="adm-hint">Escreve o código de 6 dígitos da tua app de autenticação.</p>' + fCode('aCode','Código'), s:'Confirmar', l: link('aBack','Voltar') },
+      forgot: { t:'Recuperar palavra-passe', b:'<p class="adm-hint">Enviamos um código de 6 dígitos para o teu email.</p>' + fEmail(resetEmail), s:'Enviar código', l: link('aBack','Voltar') },
+      reset:  { t:'Nova palavra-passe', b:'<p class="adm-hint">Escreve o código que recebeste por email e a nova palavra-passe.</p>' + fCode('aCode','Código do email') + fPass('Nova palavra-passe','new-password') + `<div class="field" id="totpWrap" hidden>${fCode('aTotp','Código da app de verificação')}</div>`, s:'Repor palavra-passe', l: link('aBack','Voltar') },
+    }[step];
+    $$('authTitle').textContent = T.t;
+    $$('stepBody').innerHTML = T.b;
+    $$('aSubmit').textContent = T.s;
+    $$('authLinks').innerHTML = T.l;
+    err('');
+    const sw = $$('aSwitch'); if(sw) sw.onclick = () => { step = step==='login' ? 'signup' : 'login'; paint(); };
+    const fg = $$('aForgot'); if(fg) fg.onclick = () => { step = 'forgot'; paint(); };
+    const bk = $$('aBack'); if(bk) bk.onclick = () => { step = 'login'; paint(); };
+    const pe = $$('aEmail'); if(pe) pe.addEventListener('input', () => { resetEmail = pe.value; });
+    document.getElementById('modal').classList.add('auth-glow');
+  }
+  function done(token, user){
+    setToken(token);
+    loginAs(user.email);
+    acctUser = user;
+    pullLibrary().then(() => { closeModal(); toast(step==='signup' ? 'Conta criada' : 'Sessão iniciada'); refreshAccountSection(); });
+  }
+  paint();
+  document.getElementById('authForm').onsubmit = async ev => {
+    ev.preventDefault();
+    const email = ($$('aEmail')?.value || '').trim().toLowerCase();
+    const pw = $$('aPass')?.value || '';
+    const btn = $$('aSubmit'); btn.disabled = true;
+    try{
+      if(step==='login' || step==='signup'){
+        if(!/^\S+@\S+\.\S+$/.test(email)) return err('Email inválido.');
+        if(step==='signup' && pw.length < 8) return err('A palavra-passe deve ter pelo menos 8 caracteres.');
+        if(step==='login' && !pw) return err('Escreve a palavra-passe.');
+        const r = await acctApi(step==='login' ? '/auth/login' : '/auth/register', {method:'POST', body:{email, password:pw}});
+        if(!r.ok) return err(r.data.error || 'Não foi possível concluir. Tenta de novo.');
+        if(r.data.mfa){ mfaToken = r.data.mfaToken; step = 'mfa'; paint(); return; }
+        return done(r.data.token, r.data.user);
+      }
+      if(step==='mfa'){
+        const code = $$('aCode')?.value.trim() || '';
+        const r = await acctApi('/auth/login/2fa', {method:'POST', body:{mfaToken, code}});
+        if(!r.ok){ if(r.status===401 && /expirou/.test(r.data.error||'')){ step='login'; paint(); } return err(r.data.error || 'Código incorreto.'); }
+        return done(r.data.token, r.data.user);
+      }
+      if(step==='forgot'){
+        if(!/^\S+@\S+\.\S+$/.test(email)) return err('Email inválido.');
+        resetEmail = email;
+        await acctApi('/auth/reset/request', {method:'POST', body:{email}});
+        step = 'reset'; paint();
+        toast('Se o email tiver conta, recebes um código.', 3500);
+        return;
+      }
+      if(step==='reset'){
+        const code = $$('aCode')?.value.trim() || '';
+        const totp = $$('aTotp')?.value.trim() || '';
+        const r = await acctApi('/auth/reset/confirm', {method:'POST', body:{email:resetEmail, code, newPassword:pw, totp: totp || undefined}});
+        if(!r.ok){
+          if(r.data.needsTotp){ $$('totpWrap').hidden = false; }
+          return err(r.data.error || 'Não foi possível repor a palavra-passe.');
+        }
+        step = 'login'; paint();
+        $$('aEmail').value = resetEmail;
+        toast('Palavra-passe alterada. Inicia sessão.', 3500);
+      }
+    } finally { btn.disabled = false; }
+  };
+}
+
+/* Verificação em duas etapas e sessões (secção "Conta e segurança" no Perfil) */
+function refreshAccountSection(){
+  const sec = document.getElementById('secAcc'); if(!sec) return;
+  const on = serverMode() && !!currentUser() && !!getToken();
+  sec.hidden = !on;
+  if(!on) return;
+  const tf = !!(acctUser && acctUser.twoFactor);
+  document.getElementById('secStatus').textContent = tf
+    ? 'Verificação em duas etapas ativa. Ao iniciar sessão pedimos também o código da app.'
+    : 'Verificação em duas etapas desativada. Recomendamos ativar para proteger a conta.';
+  document.getElementById('btn2fa').textContent = tf ? 'Desativar verificação em duas etapas' : 'Ativar verificação em duas etapas';
+}
+function loadScriptOnce(src){
+  return new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+async function openSetup2FA(){
+  const r = await acctApi('/auth/2fa/setup', {method:'POST', auth:true});
+  if(r.status===401){ sessionEnded(); return; }
+  if(!r.ok){ toast(r.data.error || 'Não foi possível preparar a verificação.'); return; }
+  openModal(`
+    <div class="mhead"><h2>Ativar verificação em duas etapas</h2><button class="x" data-close aria-label="Fechar">×</button></div>
+    <div class="mbody">
+      <p>1. Abre uma app de autenticação (Google Authenticator, Microsoft Authenticator, Authy…) e lê este código QR.</p>
+      <div class="qr" id="qrBox" role="img" aria-label="Código QR para a app de autenticação"></div>
+      <p class="adm-hint">Não consegues ler o QR? Escreve esta chave na app:</p>
+      <p><code class="secret">${esc(r.data.secret)}</code></p>
+      <form id="fx2fa" novalidate>
+        <p>2. Escreve o código de 6 dígitos que a app mostra.</p>
+        ${fCode('setCode','Código')}
+        <p id="setErr" role="alert" style="color:#ff6b8a;min-height:20px"></p>
+        <div class="form-actions"><button class="btn primary" type="submit">Ativar</button></div>
+      </form>
+    </div>`);
+  try{
+    if(!window.qrcode) await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js');
+    const q = qrcode(0, 'M'); q.addData(r.data.otpauth); q.make();
+    document.getElementById('qrBox').innerHTML = q.createSvgTag({cellSize:4, margin:2});
+  }catch(e){
+    document.getElementById('qrBox').textContent = 'Não foi possível mostrar o QR. Usa a chave abaixo.';
+  }
+  document.getElementById('fx2fa').onsubmit = async ev => {
+    ev.preventDefault();
+    const code = document.getElementById('setCode').value.trim();
+    const e = await acctApi('/auth/2fa/enable', {method:'POST', auth:true, body:{code}});
+    if(!e.ok){ document.getElementById('setErr').textContent = e.data.error || 'Código incorreto.'; return; }
+    acctUser = e.data.user; closeModal(); toast('Verificação em duas etapas ativa'); refreshAccountSection();
+  };
+}
+function openDisable2FA(){
+  openModal(`
+    <div class="mhead"><h2>Desativar verificação em duas etapas</h2><button class="x" data-close aria-label="Fechar">×</button></div>
+    <form class="mbody" id="fx2faOff" novalidate>
+      <p class="adm-hint">Para desativar, confirma a palavra-passe e escreve o código da app.</p>
+      ${fPass('Palavra-passe','current-password')}
+      ${fCode('offCode','Código da app')}
+      <p id="offErr" role="alert" style="color:#ff6b8a;min-height:20px"></p>
+      <div class="form-actions"><button class="btn primary" type="submit">Desativar</button></div>
+    </form>`);
+  document.getElementById('fx2faOff').onsubmit = async ev => {
+    ev.preventDefault();
+    const password = document.getElementById('aPass').value;
+    const code = document.getElementById('offCode').value.trim();
+    const r = await acctApi('/auth/2fa/disable', {method:'POST', auth:true, body:{password, code}});
+    if(!r.ok){ document.getElementById('offErr').textContent = r.data.error || 'Não foi possível desativar.'; return; }
+    acctUser = r.data.user; closeModal(); toast('Verificação em duas etapas desativada'); refreshAccountSection();
+  };
+}
+document.getElementById('btn2fa').addEventListener('click', () => {
+  if(acctUser && acctUser.twoFactor) openDisable2FA(); else openSetup2FA();
+});
+document.getElementById('btnLogoutAll').addEventListener('click', () => {
+  askConfirm({title:'Terminar sessões', text:'Termina a sessão em todos os dispositivos, incluindo este.', ok:'Terminar', onOk: async () => {
+    await acctApi('/auth/logout-all', {method:'POST', auth:true});
+    setToken(''); acctUser = null; clearTimeout(syncTimer);
+    try{ localStorage.removeItem(SESS_KEY); }catch(e){}
+    db = load(); refreshAccountButton(); refreshSpotifyButton(); refreshAll(); refreshAccountSection();
+    toast('Sessões terminadas'); openAuth('login', true);
+  }});
+});
+
 document.getElementById('btnAccount').addEventListener('click', () => {
   if (currentUser()) askConfirm({title:'Terminar sessão', text:'Queres terminar a sessão nesta app?', ok:'Terminar', onOk:()=>logout()});
   else openAuth('login');
 });
 refreshAccountButton();
 refreshSpotifyButton();
+refreshAccountSection();
+restoreSession();
 spotifyHandleRedirect();
 showTermsIfNeeded();
 

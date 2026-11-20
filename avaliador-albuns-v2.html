@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f1013">
 <meta charset="utf-8">
-<script>const APP_VERSION='2.39.20';</script>
+<script>const APP_VERSION='2.39.21';</script>
 <script>try{document.documentElement.dataset.mode=localStorage.getItem("music-tracker-mode")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.mode="light"}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Music Tracker</title>
@@ -185,6 +185,11 @@
       <h1 id="profName">Visitante</h1>
       <p class="hero-sub" id="profSub"></p>
       <p class="adm-hint" style="margin:0 0 12px"><a href="privacidade.html">Política de privacidade</a></p>
+<section class="adm" id="secAcc" aria-labelledby="secTitle" hidden>
+  <h3 id="secTitle">Conta e segurança</h3>
+  <p class="adm-hint" id="secStatus"></p>
+  <div class="adm-row"><button class="btn primary" id="btn2fa" type="button">Ativar verificação em duas etapas</button><button class="btn ghost" id="btnLogoutAll" type="button">Terminar sessão em todos os dispositivos</button></div>
+</section>
 <section class="adm" aria-labelledby="admTitle">
   <h3 id="admTitle">Administração</h3>
   <p class="adm-hint">Lista das contas criadas e do país de cada uma. Precisa do token de admin.</p>
