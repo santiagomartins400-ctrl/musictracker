@@ -105,14 +105,24 @@ async function totpAt(secretBytes, counter) {
   const code = (((sig[o] & 0x7f) << 24) | (sig[o + 1] << 16) | (sig[o + 2] << 8) | sig[o + 3]) % 1000000;
   return String(code).padStart(6, '0');
 }
-async function verifyTotp(secretB32, code) {
+// Devolve o passo de 30 s do código (ou null). Aceita 30 s antes ou depois, por causa do relógio.
+async function totpStep(secretB32, code) {
   const bytes = b32decode(secretB32);
-  if (!bytes || !/^\d{6}$/.test(String(code || ''))) return false;
+  if (!bytes || !/^\d{6}$/.test(String(code || ''))) return null;
   const c = Math.floor(Date.now() / 30000);
-  for (const d of [-1, 0, 1]) {            // aceita 30 s antes ou depois, por causa do relógio
-    if (timingSafeEq(await totpAt(bytes, c + d), String(code))) return true;
+  for (const d of [-1, 0, 1]) {
+    if (timingSafeEq(await totpAt(bytes, c + d), String(code))) return c + d;
   }
-  return false;
+  return null;
+}
+// Confere o código da app e marca-o como usado: o mesmo código (ou um anterior) não volta a valer.
+// Quem chama tem de guardar o utilizador depois de um sucesso.
+async function checkTotp(user, code) {
+  if (!user.totp || !user.totp.secret) return false;
+  const step = await totpStep(user.totp.secret, code);
+  if (step === null || step <= (user.totp.last ?? -1)) return false;
+  user.totp.last = step;
+  return true;
 }
 function newTotpSecret() { return b32encode(randomBytes(20)); }
 function otpauthUri(email, secret) {
@@ -245,10 +255,11 @@ export default {
         const user = await getUser(env, pending.email);
         if (!user || !user.totp || !user.totp.enabled) return json({ error: 'Pedido inválido.' }, 400, origin);
         if (await lockState(env, pending.email)) return json({ error: 'Demasiadas tentativas. Tenta daqui a 15 minutos.' }, 429, origin);
-        if (!(await verifyTotp(user.totp.secret, body.code))) {
+        if (!(await checkTotp(user, body.code))) {
           await recordFail(env, pending.email);
-          return json({ error: 'Código incorreto.' }, 401, origin);
+          return json({ error: 'Código incorreto ou já usado. Espera pelo código seguinte.' }, 401, origin);
         }
+        await putUser(env, user);
         await env.ACCOUNTS.delete(key);
         await clearFails(env, pending.email);
         const token = await issueSession(env, user);
@@ -293,7 +304,7 @@ export default {
         if (!s) return json({ error: 'Sessão inválida.' }, 401, origin);
         const body = (await readBody(request)) || {};
         if (!s.user.totp || !s.user.totp.secret) return json({ error: 'Começa por preparar a verificação.' }, 400, origin);
-        if (!(await verifyTotp(s.user.totp.secret, body.code))) return json({ error: 'Código incorreto.' }, 400, origin);
+        if (!(await checkTotp(s.user, body.code))) return json({ error: 'Código incorreto ou já usado.' }, 400, origin);
         s.user.totp.enabled = true;
         await putUser(env, s.user);
         return json({ user: publicUser(s.user) }, 200, origin);
@@ -305,7 +316,7 @@ export default {
         const body = (await readBody(request)) || {};
         if (!s.user.totp || !s.user.totp.enabled) return json({ error: 'A verificação não está ativa.' }, 400, origin);
         if (!(await checkPassword(String(body.password || ''), s.user.pw))) return json({ error: 'Palavra-passe incorreta.' }, 401, origin);
-        if (!(await verifyTotp(s.user.totp.secret, body.code))) return json({ error: 'Código incorreto.' }, 401, origin);
+        if (!(await checkTotp(s.user, body.code))) return json({ error: 'Código incorreto ou já usado.' }, 401, origin);
         s.user.totp = null;
         await putUser(env, s.user);
         return json({ user: publicUser(s.user) }, 200, origin);
@@ -353,7 +364,7 @@ export default {
         }
         if (user.totp && user.totp.enabled) {
           if (!body.totp) return json({ error: 'Falta o código da app de verificação.', needsTotp: true }, 400, origin);
-          if (!(await verifyTotp(user.totp.secret, body.totp))) return json({ error: 'Código da app incorreto.', needsTotp: true }, 400, origin);
+          if (!(await checkTotp(user, body.totp))) return json({ error: 'Código da app incorreto ou já usado.', needsTotp: true }, 400, origin);
         }
         await env.ACCOUNTS.delete('r:' + email);
         user.pw = await makePassword(body.newPassword);
