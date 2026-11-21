@@ -187,6 +187,40 @@ async function readBody(request) {
   try { return await request.json(); } catch (e) { return null; }
 }
 
+
+/* ---------- perfil e amigos ---------- */
+async function libraryOf(env, email) {
+  const raw = await env.ACCOUNTS.get('lib:' + email);
+  try { const l = raw ? JSON.parse(raw) : []; return Array.isArray(l) ? l : []; } catch (e) { return []; }
+}
+async function socialOf(env, email) {
+  const v = (await env.ACCOUNTS.get('soc:' + email, 'json')) || {};
+  return { friends: v.friends || [], incoming: v.incoming || [], outgoing: v.outgoing || [] };
+}
+async function namesOf(env, emails) {
+  const out = [];
+  for (const e of emails) {
+    const u = await getUser(env, e);
+    if (u && u.username) out.push({ username: u.username });
+  }
+  return out;
+}
+function ratedCount(lib) { return lib.filter(a => Number(a.stars) > 0).length; }
+// Artista favorito: o que tem mais álbuns avaliados; desempata pela melhor média
+function favArtist(lib) {
+  const by = new Map();
+  for (const a of lib) {
+    if (!(Number(a.stars) > 0) || !a.artist) continue;
+    const c = by.get(a.artist) || { artist: a.artist, n: 0, sum: 0 };
+    c.n += 1; c.sum += Number(a.stars); by.set(a.artist, c);
+  }
+  let best = null;
+  for (const c of by.values()) {
+    if (!best || c.n > best.n || (c.n === best.n && c.sum / c.n > best.sum / best.n)) best = c;
+  }
+  return best ? best.artist : null;
+}
+
 /* ---------- rotas ---------- */
 export default {
   async fetch(request, env) {
@@ -388,6 +422,86 @@ export default {
         const raw = JSON.stringify(body.lib);
         if (raw.length > MAX_LIB_CHARS) return json({ error: 'Biblioteca demasiado grande.' }, 413, origin);
         await env.ACCOUNTS.put(key, raw);
+        return json({ ok: true }, 200, origin);
+      }
+
+      /* Nome de utilizador (público) */
+      if (m === 'POST' && p === '/profile/username') {
+        const s = await sessionFor(request, env);
+        if (!s) return json({ error: 'Sessão inválida.' }, 401, origin);
+        const body = (await readBody(request)) || {};
+        const name = String(body.username || '').trim().toLowerCase();
+        if (!/^[a-z0-9_.]{3,20}$/.test(name)) return json({ error: 'O nome tem de ter entre 3 e 20 letras, números, pontos ou _.' }, 400, origin);
+        const owner = await env.ACCOUNTS.get('uname:' + name);
+        if (owner && owner !== s.user.email) return json({ error: 'Este nome já está em uso.' }, 409, origin);
+        if (s.user.username && s.user.username !== name) await env.ACCOUNTS.delete('uname:' + s.user.username);
+        s.user.username = name;
+        await env.ACCOUNTS.put('uname:' + name, s.user.email);
+        await putUser(env, s.user);
+        return json({ username: name }, 200, origin);
+      }
+
+      /* Perfil público: só estatísticas (álbuns avaliados, artista favorito, nº de amigos) */
+      if (m === 'GET' && p.startsWith('/profile/')) {
+        const name = decodeURIComponent(p.slice('/profile/'.length)).toLowerCase();
+        const email = await env.ACCOUNTS.get('uname:' + name);
+        if (!email) return json({ error: 'Perfil não encontrado.' }, 404, origin);
+        const user = await getUser(env, email);
+        if (!user) return json({ error: 'Perfil não encontrado.' }, 404, origin);
+        const lib = await libraryOf(env, email);
+        const soc = (await env.ACCOUNTS.get('soc:' + email, 'json')) || { friends: [] };
+        return json({ username: user.username, ratedCount: ratedCount(lib), favArtist: favArtist(lib), friendsCount: soc.friends.length }, 200, origin);
+      }
+
+      /* O meu perfil e a minha rede de amigos */
+      if (m === 'GET' && p === '/me/social') {
+        const s = await sessionFor(request, env);
+        if (!s) return json({ error: 'Sessão inválida.' }, 401, origin);
+        const lib = await libraryOf(env, s.user.email);
+        const soc = await socialOf(env, s.user.email);
+        const friends = await namesOf(env, soc.friends);
+        const incoming = await namesOf(env, soc.incoming);
+        const outgoing = await namesOf(env, soc.outgoing);
+        return json({
+          username: s.user.username || null,
+          ratedCount: ratedCount(lib), favArtist: favArtist(lib),
+          friends, incoming, outgoing,
+        }, 200, origin);
+      }
+
+      /* Pedidos de amizade */
+      if (m === 'POST' && (p === '/friends/request' || p === '/friends/accept' || p === '/friends/decline' || p === '/friends/remove')) {
+        const s = await sessionFor(request, env);
+        if (!s) return json({ error: 'Sessão inválida.' }, 401, origin);
+        if (!s.user.username) return json({ error: 'Escolhe primeiro um nome de utilizador.' }, 400, origin);
+        const body = (await readBody(request)) || {};
+        const name = String(body.username || '').trim().toLowerCase();
+        const otherEmail = await env.ACCOUNTS.get('uname:' + name);
+        if (!otherEmail) return json({ error: 'Utilizador não encontrado.' }, 404, origin);
+        if (otherEmail === s.user.email) return json({ error: 'Não te podes adicionar a ti próprio.' }, 400, origin);
+        const me = await socialOf(env, s.user.email);
+        const them = await socialOf(env, otherEmail);
+        const drop = (arr, v) => arr.filter(x => x !== v);
+        if (p === '/friends/request') {
+          if (me.friends.includes(otherEmail)) return json({ error: 'Já são amigos.' }, 409, origin);
+          if (me.incoming.includes(otherEmail)) {          // ele já tinha pedido: aceita-se logo
+            me.incoming = drop(me.incoming, otherEmail); them.outgoing = drop(them.outgoing, s.user.email);
+            me.friends.push(otherEmail); them.friends.push(s.user.email);
+          } else if (!me.outgoing.includes(otherEmail)) {
+            me.outgoing.push(otherEmail); them.incoming.push(s.user.email);
+          }
+        } else if (p === '/friends/accept') {
+          if (!me.incoming.includes(otherEmail)) return json({ error: 'Não há pedido deste utilizador.' }, 404, origin);
+          me.incoming = drop(me.incoming, otherEmail); them.outgoing = drop(them.outgoing, s.user.email);
+          me.friends.push(otherEmail); them.friends.push(s.user.email);
+        } else if (p === '/friends/decline') {
+          me.incoming = drop(me.incoming, otherEmail); them.outgoing = drop(them.outgoing, s.user.email);
+          me.outgoing = drop(me.outgoing, otherEmail); them.incoming = drop(them.incoming, s.user.email);
+        } else {
+          me.friends = drop(me.friends, otherEmail); them.friends = drop(them.friends, s.user.email);
+        }
+        await env.ACCOUNTS.put('soc:' + s.user.email, JSON.stringify(me));
+        await env.ACCOUNTS.put('soc:' + otherEmail, JSON.stringify(them));
         return json({ ok: true }, 200, origin);
       }
 

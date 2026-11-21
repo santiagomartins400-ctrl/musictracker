@@ -66,6 +66,8 @@ Depois publica a app (bump de versão e push, como das outras vezes). A partir d
 
 ## Notas
 
+- Perfis e amigos usam o mesmo servidor, sem segredos novos. O perfil público mostra só o nº de álbuns avaliados, o artista favorito (o que tem mais álbuns avaliados) e o nº de amigos.
+
 - Contas criadas só neste navegador antes deste servidor não passam automaticamente para o servidor: têm de ser criadas de novo.
 - A palavra-passe é guardada com PBKDF2 (100 000 iterações). Os códigos de recuperação e as sessões também são guardados só em forma de resumo.
 - Limite de tentativas: 10 falhas de palavra-passe bloqueiam a conta 15 minutos. Os códigos de recuperação aceitam 5 tentativas.

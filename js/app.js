@@ -1159,6 +1159,7 @@ refreshSpotifyButton();
 refreshAccountSection();
 restoreSession();
 spotifyHandleRedirect();
+(()=>{ const qp=new URLSearchParams(location.search).get('u'); if(qp && serverMode()) setTimeout(()=>openPublicProfile(qp), 900); })();
 showTermsIfNeeded();
 
 loadSuggestions();
@@ -1201,6 +1202,7 @@ function openPlaylist(k){
 }
 
 function renderProfile(){
+  renderSocial();
   const u=currentUser();
   $('#accText').textContent = u ? 'Sessão iniciada como ' + u + '. As tuas avaliações ficam guardadas nesta conta.' : 'Entra ou cria uma conta para guardar as tuas avaliações.';
   $('#accIn').hidden = !!u;
@@ -1208,6 +1210,121 @@ function renderProfile(){
   refreshSpotifyButton();
   $('#profName').textContent = u ? u.split('@')[0] : 'Visitante';
   $('#profSub').textContent = u ? 'Sessão iniciada. As tuas avaliações ficam guardadas nesta conta.' : 'Entra para guardar a tua conta e as tuas avaliações.';
+}
+
+/* ---------- Perfil e amigos (precisa do servidor de contas) ---------- */
+let meSocial = null;
+const socialOn = () => serverMode() && !!currentUser() && !!getToken();
+async function loadSocial(){
+  if(!socialOn()) return null;
+  const r = await acctApi('/me/social', {auth:true});
+  if(r.status===401){ sessionEnded(); return null; }
+  if(!r.ok) return null;
+  meSocial = r.data;
+  return meSocial;
+}
+const hasName = (list, name) => (list||[]).some(x => x.username === name);
+const pStat = (k, v) => `<div class="stat"><small>${esc(k)}</small><b>${esc(v)}</b></div>`;
+async function renderSocial(){
+  const box = $('#social'); if(!box) return;
+  box.hidden = !socialOn();
+  if(box.hidden) return;
+  const d = await loadSocial();
+  if(!d){ $('#profStats').innerHTML=''; return; }
+  $('#profStats').innerHTML = pStat('Álbuns avaliados', d.ratedCount) + pStat('Artista favorito', d.favArtist || '—') + pStat('Amigos', d.friends.length);
+
+  const ub = $('#unameBox');
+  if(!d.username){
+    ub.innerHTML = `<h3 id="unameTitle">Nome de utilizador</h3>
+      <p class="adm-hint">Escolhe um nome público para os teus amigos te encontrarem. Entre 3 e 20 letras, números, pontos ou _.</p>
+      <form class="soc-form" id="unameForm"><input id="unameIn" autocomplete="off" maxlength="20" aria-label="Nome de utilizador" placeholder="ex.: ana.music"><button class="btn primary" type="submit">Guardar</button></form>
+      <p class="soc-msg" id="unameMsg" role="status"></p>`;
+    $('#unameForm').onsubmit = async ev => {
+      ev.preventDefault();
+      const name = $('#unameIn').value.trim();
+      const r = await acctApi('/profile/username', {method:'POST', auth:true, body:{username:name}});
+      if(!r.ok){ $('#unameMsg').textContent = r.data.error || 'Não foi possível guardar.'; return; }
+      toast('Nome guardado'); renderSocial();
+    };
+  }else{
+    ub.innerHTML = `<h3 id="unameTitle">O teu perfil público</h3>
+      <p class="adm-hint">Quem tiver este link vê o número de álbuns avaliados, o artista favorito e o número de amigos.</p>
+      <div class="soc-form"><input readonly value="@${esc(d.username)}" aria-label="Nome de utilizador"><button class="btn ghost" type="button" id="copyProfile">Copiar link</button></div>`;
+    $('#copyProfile').onclick = async () => {
+      const link = `${location.origin}${location.pathname}?u=${encodeURIComponent(d.username)}`;
+      try{ await navigator.clipboard.writeText(link); toast('Link copiado'); }catch(e){ toast(link, 5000); }
+    };
+  }
+
+  const fb = $('#friendsBox');
+  if(!d.username){ fb.innerHTML = `<h3 id="friendsTitle">Amigos</h3><p class="adm-hint">Escolhe primeiro o nome de utilizador para adicionar amigos.</p>`; return; }
+  const row = (name, sub, acts) => `<div class="soc-row"><div><b>@${esc(name)}</b>${sub?`<small>${esc(sub)}</small>`:''}</div><div class="acts">${acts}</div></div>`;
+  const btn = (act, name, label, cls='ghost') => `<button class="btn ${cls}" type="button" data-act="${act}" data-u="${esc(name)}">${label}</button>`;
+  fb.innerHTML = `<h3 id="friendsTitle">Amigos</h3>
+    <form class="soc-form" id="addFriendForm"><input id="addFriendIn" autocomplete="off" maxlength="20" aria-label="Nome de utilizador do amigo" placeholder="Nome de utilizador exato, ex.: bea.x"><button class="btn primary" type="submit">Adicionar</button></form>
+    ${d.incoming.length ? `<p class="soc-h">Pedidos recebidos</p><div class="soc-list">${d.incoming.map(x=>row(x.username,'Quer ser teu amigo', btn('accept',x.username,'Aceitar','primary')+btn('decline',x.username,'Recusar'))).join('')}</div>`:''}
+    ${d.outgoing.length ? `<p class="soc-h">Pedidos enviados</p><div class="soc-list">${d.outgoing.map(x=>row(x.username,'Pendente', btn('decline',x.username,'Cancelar'))).join('')}</div>`:''}
+    <p class="soc-h">Amigos (${d.friends.length})</p>
+    ${d.friends.length ? `<div class="soc-list">${d.friends.map(x=>row(x.username,'', btn('view',x.username,'Ver perfil')+btn('remove',x.username,'Remover'))).join('')}</div>` : '<p class="soc-msg">Ainda não tens amigos. Procura um nome de utilizador acima.</p>'}`;
+
+  $('#addFriendForm').onsubmit = async ev => {
+    ev.preventDefault();
+    const name = $('#addFriendIn').value.trim().toLowerCase();
+    if(!name) return;
+    const r = await acctApi('/friends/request', {method:'POST', auth:true, body:{username:name}});
+    if(!r.ok){ toast(r.data.error || 'Não foi possível enviar o pedido.'); return; }
+    toast('Pedido enviado'); renderSocial();
+  };
+}
+document.getElementById('friendsBox').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-act]'); if(!b) return;
+  const name = b.dataset.u, act = b.dataset.act;
+  if(act==='view'){ openPublicProfile(name); return; }
+  if(act==='remove'){
+    askConfirm({title:'Remover amigo', text:`Queres remover @${name} da tua lista de amigos?`, ok:'Remover', onOk: async () => {
+      await acctApi('/friends/remove', {method:'POST', auth:true, body:{username:name}}); renderSocial();
+    }});
+    return;
+  }
+  const r = await acctApi('/friends/'+act, {method:'POST', auth:true, body:{username:name}});
+  if(!r.ok){ toast(r.data.error || 'Não foi possível concluir.'); return; }
+  if(act==='accept') toast(`Agora és amigo de @${name}`);
+  renderSocial();
+});
+/* Perfil público de outra pessoa (também abre com ?u=nome no link) */
+async function openPublicProfile(name){
+  const r = await acctApi('/profile/'+encodeURIComponent(name));
+  if(!r.ok){ toast(r.data.error || 'Perfil não encontrado.'); return; }
+  const p = r.data, me = await (meSocial ? Promise.resolve(meSocial) : loadSocial());
+  const isMe = !!(me && me.username === p.username);
+  let action = '';
+  if(me && !isMe){
+    if(hasName(me.friends, p.username)) action = `<button class="btn ghost" type="button" data-pact="remove">Remover amigo</button>`;
+    else if(hasName(me.incoming, p.username)) action = `<button class="btn primary" type="button" data-pact="accept">Aceitar pedido</button>`;
+    else if(hasName(me.outgoing, p.username)) action = `<button class="btn ghost" type="button" data-pact="decline">Cancelar pedido</button>`;
+    else action = `<button class="btn primary" type="button" data-pact="request">Adicionar amigo</button>`;
+  }
+  openModal(`
+    <div class="mhead"><h2>@${esc(p.username)}</h2><button class="x" data-close aria-label="Fechar">×</button></div>
+    <div class="mbody">
+      <div class="pp-stats">
+        ${pStat('Álbuns avaliados', p.ratedCount)}
+        ${pStat('Artista favorito', p.favArtist || '—')}
+        ${pStat('Amigos', p.friendsCount)}
+      </div>
+      ${isMe ? '<p class="adm-hint">É o teu perfil.</p>' : ''}
+      ${!me ? '<p class="adm-hint">Entra para adicionar esta pessoa como amiga.</p>' : ''}
+      <div class="form-actions">${action}</div>
+    </div>`);
+  const mb = document.getElementById('modal');
+  mb.onclick = async ev => {
+    const b = ev.target.closest('[data-pact]'); if(!b) return;
+    const act = b.dataset.pact;
+    const path = act==='request' ? '/friends/request' : act==='accept' ? '/friends/accept' : act==='decline' ? '/friends/decline' : '/friends/remove';
+    const x = await acctApi(path, {method:'POST', auth:true, body:{username:p.username}});
+    if(!x.ok){ toast(x.data.error || 'Não foi possível concluir.'); return; }
+    closeModal(); toast('Feito'); renderSocial();
+  };
 }
 
 /* Pesquisa: artistas agrupados e músicas do top semanal */

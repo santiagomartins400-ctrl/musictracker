@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f1013">
 <meta charset="utf-8">
-<script>const APP_VERSION='2.39.25';</script>
+<script>const APP_VERSION='2.39.26';</script>
 <script>try{document.documentElement.dataset.mode=localStorage.getItem("music-tracker-mode")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.mode="light"}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Music Tracker</title>
@@ -184,6 +184,11 @@
       <p class="eyebrow">Perfil</p>
       <h1 id="profName">Visitante</h1>
       <p class="hero-sub" id="profSub"></p>
+      <div class="social" id="social" hidden>
+        <div class="stats soc-stats" id="profStats"></div>
+        <section class="adm" id="unameBox" aria-labelledby="unameTitle"></section>
+        <section class="adm" id="friendsBox" aria-labelledby="friendsTitle"></section>
+      </div>
       <p class="adm-hint" style="margin:0 0 12px"><a href="privacidade.html">Política de privacidade</a></p>
 <section class="adm" id="secAcc" aria-labelledby="secTitle" hidden>
   <h3 id="secTitle">Conta e segurança</h3>

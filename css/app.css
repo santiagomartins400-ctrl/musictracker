@@ -604,3 +604,19 @@ section[id^="view-"]:not(.hidden){animation:mIn .55s cubic-bezier(.2,.9,.25,1) b
 .qr svg{width:200px;height:200px}
 .secret{display:inline-block;padding:6px 10px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:14px;letter-spacing:.06em;word-break:break-all}
 .auth-links .btn{font-size:14px}
+
+/* Perfil e amigos */
+.soc-stats{margin-bottom:18px}
+.soc-stats .stat b{font-size:1.2rem}
+.soc-list{display:grid;gap:8px;margin-top:12px}
+.soc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-radius:14px;background:var(--panel2);border:1px solid var(--line)}
+.soc-row b{font-weight:600;font-size:.94rem}
+.soc-row small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+.soc-row .acts{display:flex;gap:8px;flex-wrap:wrap}
+.soc-row .btn{height:34px;padding:0 14px;font-size:.84rem}
+.soc-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.soc-form input{flex:1;min-width:180px;height:42px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 16px;font:inherit}
+.soc-h{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 0;font-weight:700}
+.soc-msg{color:var(--muted);font-size:.86rem;margin-top:10px}
+.pp-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 6px}
+.pp-stats .stat{padding:14px}
