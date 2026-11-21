@@ -980,6 +980,7 @@ function openAuth(start='login', gate=false){
   };
 }
 function fEmail(v){ return `<div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" required autocomplete="email" value="${esc(v||'')}"></div>`; }
+function fPassAuth(label, ac){ return `<div class="field"><label for="aPass">${label}</label><div class="pw-wrap"><input id="aPass" type="password" required minlength="8" autocomplete="${ac}"><button type="button" class="pw-toggle" id="pwToggle" aria-label="Mostrar palavra-passe">Mostrar</button></div></div>`; }
 function fPass(label, ac){ return `<div class="field"><label for="aPass">${label}</label><input id="aPass" type="password" required minlength="8" autocomplete="${ac}"></div>`; }
 function fCode(id, label){ return `<div class="field"><label for="${id}">${label}</label><input id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>`; }
 function openAuthServer(start='login', gate=false){
@@ -987,26 +988,38 @@ function openAuthServer(start='login', gate=false){
   let mfaToken = '', resetEmail = '';
   window.authGate = gate;
   openModal(`
-    <div class="mhead"><h2 id="authTitle"></h2>${gate?'':'<button class="x" data-close aria-label="Fechar">×</button>'}</div>
+    <div class="mhead"><div><div class="auth-brand"><i></i>Music Tracker</div><h2 id="authTitle"></h2><p class="auth-sub" id="authSub"></p></div>${gate?'':'<button class="x" data-close aria-label="Fechar">×</button>'}</div>
     <form class="mbody" id="authForm" novalidate>
       <div id="stepBody"></div>
-      <p id="authErr" role="alert" style="color:#ff6b8a;min-height:20px;margin:0 0 10px"></p>
+      <p id="authErr" class="auth-err" role="alert"></p>
       <div class="form-actions"><button type="submit" class="btn primary" id="aSubmit"></button></div>
-      <p class="auth-links" id="authLinks" style="text-align:center;margin-top:14px"></p>
+      <div class="auth-links" id="authLinks"></div>
     </form>`);
   const err = m => { document.getElementById('authErr').textContent = m || ''; };
   const $$ = id => document.getElementById(id);
   const link = (id, txt) => `<button type="button" class="btn ghost" id="${id}" style="padding:4px 8px">${txt}</button>`;
   function paint(){
     const T = {
-      login:  { t:'Entrar', b: fEmail(resetEmail) + fPass('Palavra-passe','current-password'), s:'Entrar', l: link('aSwitch','Criar conta') + ' · ' + link('aForgot','Esqueci a palavra-passe') },
-      signup: { t:'Criar conta', b: fEmail() + fPass('Palavra-passe (mínimo 8 caracteres)','new-password'), s:'Criar conta', l: link('aSwitch','Já tenho conta') },
-      mfa:    { t:'Verificação em duas etapas', b:'<p class="adm-hint">Escreve o código de 6 dígitos da tua app de autenticação.</p>' + fCode('aCode','Código'), s:'Confirmar', l: link('aBack','Voltar') },
-      forgot: { t:'Recuperar palavra-passe', b:'<p class="adm-hint">Enviamos um código de 6 dígitos para o teu email.</p>' + fEmail(resetEmail), s:'Enviar código', l: link('aBack','Voltar') },
-      reset:  { t:'Nova palavra-passe', b:'<p class="adm-hint">Escreve o código que recebeste por email e a nova palavra-passe.</p>' + fCode('aCode','Código do email') + fPass('Nova palavra-passe','new-password') + `<div class="field" id="totpWrap" hidden>${fCode('aTotp','Código da app de verificação')}</div>`, s:'Repor palavra-passe', l: link('aBack','Voltar') },
+      login:  { t:'Entrar', b: fEmail(resetEmail) + fPassAuth('Palavra-passe','current-password'), s:'Entrar', l: link('aSwitch','Criar conta') + ' · ' + link('aForgot','Esqueci a palavra-passe') },
+      signup: { t:'Criar conta', b: fEmail() + fPassAuth('Palavra-passe (mínimo 8 caracteres)','new-password'), s:'Criar conta', l: link('aSwitch','Já tenho conta') },
+      mfa:    { t:'Verificação', b: fCode('aCode','Código de 6 dígitos'), s:'Confirmar', l: link('aBack','Voltar') },
+      forgot: { t:'Recuperar palavra-passe', b: fEmail(resetEmail), s:'Enviar código', l: link('aBack','Voltar') },
+      reset:  { t:'Nova palavra-passe', b: fCode('aCode','Código do email') + fPassAuth('Nova palavra-passe','new-password') + `<div class="field" id="totpWrap" hidden>${fCode('aTotp','Código da app de verificação')}</div>`, s:'Repor palavra-passe', l: link('aBack','Voltar') },
     }[step];
+    const SUB = {
+      login: 'Entra para guardar as tuas avaliações em qualquer dispositivo.',
+      signup: 'Cria a tua conta. Leva menos de um minuto.',
+      mfa: 'Escreve o código da tua app de autenticação.',
+      forgot: 'Enviamos um código de 6 dígitos para o teu email.',
+      reset: 'Escreve o código que recebeste e a nova palavra-passe.',
+    };
     $$('authTitle').textContent = T.t;
-    $$('stepBody').innerHTML = T.b;
+    $$('authSub').textContent = SUB[step] || '';
+    const sb = $$('stepBody');
+    sb.innerHTML = T.b;
+    sb.classList.remove('auth-step'); void sb.offsetWidth; sb.classList.add('auth-step');   // repete a entrada suave a cada passo
+    const pt = $$('pwToggle');
+    if(pt) pt.onclick = () => { const i = $$('aPass'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; pt.textContent = show ? 'Ocultar' : 'Mostrar'; pt.setAttribute('aria-label', show ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'); };
     $$('aSubmit').textContent = T.s;
     $$('authLinks').innerHTML = T.l;
     err('');
