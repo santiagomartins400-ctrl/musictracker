@@ -243,7 +243,7 @@ footer a:hover{color:var(--text)}
 <main class="wrap">
   <div class="hero">
     <div>
-      <span class="badge" data-in style="--d:0ms"><span class="dot" aria-hidden="true"></span>Versão <span id="ver">2.39.24</span></span>
+      <span class="badge" data-in style="--d:0ms"><span class="dot" aria-hidden="true"></span>Versão <span id="ver">2.39.25</span></span>
       <h1 data-in style="--d:90ms">Avalia cada álbum <span class="grad">com critério.</span></h1>
       <p class="lead" data-in style="--d:180ms">Pesquisa álbuns de qualquer artista e país, vê as capas e as artes e dá a cada álbum uma nota de meia em meia estrela, com a tua review.</p>
       <div class="cta" data-in style="--d:270ms">
@@ -407,7 +407,7 @@ footer a:hover{color:var(--text)}
 
 <footer>
   <div class="wrap">
-    <span>© Music Tracker · Versão <span class="ver-s">2.39.24</span></span>
+    <span>© Music Tracker · Versão <span class="ver-s">2.39.25</span></span>
     <a href="privacidade.html">Privacidade</a>
   </div>
 </footer>
@@ -469,11 +469,21 @@ function toast(m){ t.textContent=m; t.classList.add('show'); clearTimeout(tt); t
 
 /* Capas reais da iTunes, por artista */
 const ARTISTS=['Radiohead','Frank Ocean','Beyoncé','Amália Rodrigues','Daft Punk','Kendrick Lamar','Bob Marley','Miles Davis','Adele','Pink Floyd','Michael Jackson','Rihanna','Coldplay','Nirvana','Sade','Stevie Wonder','Pixies','Tame Impala','Bon Iver','Amy Winehouse','Madonna','Queen','The Beatles','David Bowie','Led Zeppelin','Kanye West','Lauryn Hill','Joni Mitchell','Nina Simone','Fleetwood Mac'];
+/* Álbuns em destaque, sempre no topo (procurados na iTunes pelo nome do álbum e do artista) */
+const FEATURED=[
+  {name:'Goodbye & Good Riddance', artist:'Juice WRLD', term:'Juice WRLD Goodbye & Good Riddance'},
+  {name:'My Beautiful Dark Twisted Fantasy', artist:'Kanye West', term:'Kanye West My Beautiful Dark Twisted Fantasy'},
+  {name:'The College Dropout', artist:'Kanye West', term:'Kanye West The College Dropout'},
+];
+const seen=new Set();
 let next=0;
 const wall=document.getElementById('wall');
 const moreBtn=document.getElementById('more');
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function addCover(x){
+  const key=x.collectionViewUrl||x.collectionId||(x.collectionName+x.artistName);
+  if(seen.has(key)) return;
+  seen.add(key);
   const a=document.createElement('a');
   a.href=x.collectionViewUrl||'#'; a.target='_blank'; a.rel='noopener';
   a.title=`${x.collectionName} — ${x.artistName}`;
@@ -488,6 +498,16 @@ function addCover(x){
   a.style.transition=`opacity .7s var(--ease) ${reduce?0:wall.children.length%8*60}ms, transform .7s var(--ease) ${reduce?0:wall.children.length%8*60}ms, box-shadow .5s var(--ease)`;
   wall.appendChild(a);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ a.style.opacity='1'; a.style.transform='none'; }));
+}
+async function loadFeatured(){
+  await Promise.all(FEATURED.map(async f=>{
+    try{
+      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(f.term)}&entity=album&media=music&limit=10`);
+      const j=await r.json();
+      const hit=j.results.find(x=>x.artworkUrl100 && x.collectionName && x.collectionName.toLowerCase().includes(f.name.toLowerCase()) && x.artistName && x.artistName.toLowerCase().includes(f.artist.toLowerCase()));
+      if(hit) addCover(hit);
+    }catch(e){}
+  }));
 }
 async function loadCovers(){
   moreBtn.disabled=true; moreBtn.textContent='A carregar…';
@@ -509,7 +529,7 @@ async function loadCovers(){
   moreBtn.textContent=done?'Sem mais capas':'Carregar mais capas';
 }
 moreBtn.addEventListener('click',loadCovers);
-loadCovers();
+(async()=>{ await loadFeatured(); await loadCovers(); })();
 </script>
 </body>
 </html>
