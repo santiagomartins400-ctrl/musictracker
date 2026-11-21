@@ -2,238 +2,316 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Music Tracker — Download</title>
-<meta name="description" content="Avalia álbuns com critérios próprios, pesquisa um catálogo e vê capas e fotos. Descarrega ou instala como app.">
-<meta name="theme-color" content="#0a0a0f">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Music Tracker — Avalia os álbuns que ouves</title>
+<meta name="description" content="Pesquisa álbuns, vê capas e artes e dá a cada álbum uma nota de meia em meia estrela, com a tua review. Instala a app no computador ou no telemóvel.">
+<meta name="theme-color" content="#0b0b10">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0f;--panel:#13131b;--panel2:#1a1a25;--line:#262636;--text:#eceaf5;--muted:#8c8ca6;--accent:#8b5cf6;--accent2:#ec4899;--r:20px}
+:root{
+  --bg:#0b0b10;--panel:#14141c;--panel2:#1b1b26;--line:#262633;
+  --text:#ecebf3;--muted:#9494aa;--accent:#8b5cf6;--accent2:#ec4899;
+  --r:18px;--focus:#c4b5fd;
+}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow-x:hidden}
-h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-.03em;margin:0}
-a{color:inherit;text-decoration:none}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3{font-family:"Space Grotesk",Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:0;line-height:1.1}
+p{margin:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
 
-/* Fundo animado */
-.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
-.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:drift 18s ease-in-out infinite alternate}
-.b1{width:520px;height:520px;background:#7c3aed;top:-140px;left:-120px}
-.b2{width:460px;height:460px;background:#db2777;top:30%;right:-160px;animation-duration:22s;animation-delay:-6s}
-.b3{width:380px;height:380px;background:#2563eb;bottom:-120px;left:25%;animation-duration:26s;animation-delay:-12s}
-@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(80px,60px) scale(1.15)}}
-.grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%)}
+/* Fundo discreto */
+.bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(900px 500px at 15% -10%,rgba(139,92,246,.16),transparent 60%),
+  radial-gradient(700px 480px at 100% 10%,rgba(236,72,153,.10),transparent 60%),var(--bg)}
 
-nav{max-width:1100px;margin:auto;padding:22px 20px;display:flex;align-items:center;justify-content:space-between}
-.brand{font-family:"Space Grotesk";font-weight:700;font-size:1.25rem;display:flex;align-items:center;gap:10px}
-.brand i{width:28px;height:28px;border-radius:8px;background:conic-gradient(from 200deg,var(--accent),var(--accent2),var(--accent));box-shadow:0 0 22px rgba(139,92,246,.6);animation:spin 9s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-nav a.link{color:var(--muted);font-weight:600;font-size:.92rem}
-nav a.link:hover{color:var(--text)}
+/* Cabeçalho */
+.top{display:flex;align-items:center;justify-content:space-between;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:1.1rem;text-decoration:none}
+.mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.top nav{display:flex;gap:22px}
+.top nav a{color:var(--muted);text-decoration:none;font-size:.92rem;font-weight:500}
+.top nav a:hover{color:var(--text)}
 
-.hero{max-width:1100px;margin:auto;padding:60px 20px 40px;text-align:center}
-.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:rgba(19,19,27,.6);color:var(--muted);font-size:.85rem;font-weight:600;animation:up .8s both}
-.pill b{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 12px #22c55e;animation:pulse 1.8s infinite}
-@keyframes pulse{50%{opacity:.35}}
-h1{font-size:clamp(2.6rem,7vw,4.8rem);line-height:1.02;margin:24px 0 18px;animation:up .9s .1s both}
-.grad{background:linear-gradient(120deg,#fff 10%,var(--accent) 45%,var(--accent2) 80%);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:shine 6s linear infinite}
-@keyframes shine{to{background-position:200% center}}
-.lead{color:var(--muted);font-size:1.12rem;max-width:620px;margin:0 auto;line-height:1.6;animation:up .9s .2s both}
-@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+/* Botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:600 .98rem/1 Inter,system-ui,sans-serif;text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.btn:hover{border-color:#3a3a4e;transform:translateY(-1px)}
+.btn.primary{background:var(--text);color:#0b0b10;border-color:transparent}
+.btn.primary:hover{background:#fff}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
+.btn svg{width:18px;height:18px;flex:none}
+[hidden]{display:none!important}
 
-.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px;animation:up .9s .3s both}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:14px;font-weight:700;font-size:1rem;border:1px solid var(--line);background:var(--panel2);transition:.25s;cursor:pointer;color:var(--text);font-family:inherit}
-.btn:hover{transform:translateY(-2px);border-color:#3c3c58}
-.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;box-shadow:0 14px 40px -12px rgba(139,92,246,.8)}
-.btn.primary:hover{box-shadow:0 18px 50px -10px rgba(236,72,153,.7)}
-.btn svg{width:18px;height:18px}
-.btn[hidden]{display:none}
-.meta-line{color:var(--muted);font-size:.88rem;margin-top:16px;animation:up .9s .4s both}
+/* Herói */
+.hero{padding:64px 0 56px;text-align:center}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.82rem;font-weight:600;background:var(--panel)}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
+.hero h1{font-size:clamp(2.4rem,6vw,4.2rem);margin:22px auto 18px;max-width:880px}
+.hero h1 span{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);font-size:1.1rem;line-height:1.65;max-width:620px;margin:0 auto}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px}
+.small{color:var(--muted);font-size:.88rem;margin-top:16px}
 
-/* Preview */
-.preview{max-width:980px;margin:60px auto 0;padding:0 20px;animation:up 1s .5s both}
-.window{background:var(--panel);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 60px 120px -40px rgba(0,0,0,.9)}
-.wbar{display:flex;gap:7px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
-.wbar span{width:11px;height:11px;border-radius:50%;background:#2a2a3a}
-.wbar span:nth-child(1){background:#ff5f57}.wbar span:nth-child(2){background:#febc2e}.wbar span:nth-child(3){background:#28c840}
-.wgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:22px}
-.mini{border-radius:16px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);animation:float 6s ease-in-out infinite}
-.mini:nth-child(2){animation-delay:-1.5s}.mini:nth-child(3){animation-delay:-3s}.mini:nth-child(4){animation-delay:-4.5s}
-@keyframes float{50%{transform:translateY(-8px)}}
-.mc{aspect-ratio:1;position:relative;display:grid;place-items:center;font-family:"Space Grotesk";font-size:2.4rem;font-weight:700;opacity:.95}
-.mc em{position:absolute;top:10px;right:10px;font-style:normal;font-size:.8rem;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:8px;font-family:Inter;font-weight:700}
-.mt{padding:12px 14px}.mt b{display:block;font-size:.95rem}.mt small{color:var(--muted);font-size:.8rem}
+/* Secções */
+section{padding:56px 0}
+.head{margin-bottom:32px}
+.head h2{font-size:clamp(1.8rem,3.6vw,2.4rem)}
+.head p{color:var(--muted);margin-top:10px;max-width:620px;line-height:1.6}
+.eyebrow{color:var(--accent);font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:block}
 
-/* Features */
-section.feat{max-width:1100px;margin:90px auto 0;padding:0 20px}
-.sh{text-align:center;margin-bottom:36px}
-.sh h2{font-size:2.2rem}
-.sh p{color:var(--muted);margin-top:10px}
-.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.fcard{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--r);padding:26px;transition:.3s;opacity:0;transform:translateY(18px)}
-.fcard.in{opacity:1;transform:none}
-.fcard:hover{border-color:#3c3c58;transform:translateY(-4px)}
-.ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:1.3rem;background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(236,72,153,.25));border:1px solid rgba(255,255,255,.08);margin-bottom:18px}
-.fcard h3{font-size:1.2rem;margin-bottom:8px}
-.fcard p{color:var(--muted);line-height:1.6;margin:0;font-size:.95rem}
+/* Capas */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.wall a{display:block;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel2);transition:transform .25s,border-color .25s}
+.wall a:hover{transform:translateY(-3px);border-color:#3a3a4e}
+.wall img{width:100%;height:100%;object-fit:cover;display:block}
+.more{text-align:center;margin-top:24px}
+
+/* Funcionalidades */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+.ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);color:var(--accent);margin-bottom:18px}
+.ico svg{width:20px;height:20px}
+.card h3{font-size:1.12rem;margin-bottom:8px}
+.card p{color:var(--muted);line-height:1.6;font-size:.95rem}
 
 /* Passos */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
-.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;overflow:hidden}
-.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;right:16px;top:-10px;font-family:"Space Grotesk";font-size:4.5rem;font-weight:700;color:rgba(139,92,246,.12)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+.step{position:relative;padding:26px 26px 26px 26px;border-top:2px solid var(--line)}
+.step::before{counter-increment:s;content:"0" counter(s);display:block;font:700 .85rem "Space Grotesk",sans-serif;color:var(--accent);margin-bottom:14px}
 .step h3{font-size:1.1rem;margin-bottom:8px}
-.step p{color:var(--muted);margin:0;font-size:.93rem;line-height:1.6}
+.step p{color:var(--muted);line-height:1.6;font-size:.95rem}
 
 /* Instalação */
-.install{max-width:760px;margin:auto}
-details{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin-bottom:12px}
-details summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center}
-details summary::after{content:"+";font-size:1.4rem;color:var(--muted);transition:.2s}
-details[open] summary::after{transform:rotate(45deg)}
-details p,details li{color:var(--muted);line-height:1.7;font-size:.95rem}
-details ol{padding-left:20px;margin:12px 0 0}
-code{background:var(--panel2);padding:2px 7px;border-radius:6px;font-size:.88em;color:#f0abfc}
+.install-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.plat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px}
+.plat h3{font-size:1.1rem;margin-bottom:6px}
+.plat .sub{color:var(--muted);font-size:.88rem;margin-bottom:16px}
+.plat ol{margin:0;padding-left:20px;color:var(--muted);line-height:1.8;font-size:.95rem}
+.plat ol b{color:var(--text);font-weight:600}
+.note{margin-top:22px;padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--muted);font-size:.92rem;line-height:1.6}
+#instStatus{color:#86efac;font-weight:600}
 
-footer{max-width:1100px;margin:90px auto 0;padding:30px 20px 50px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+/* Privacidade */
+.priv{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.priv ul{margin:0;padding:0;list-style:none;display:grid;gap:12px;color:var(--muted);line-height:1.6;font-size:.95rem}
+.priv li{padding-left:22px;position:relative}
+.priv li::before{content:"";position:absolute;left:0;top:.6em;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.priv li b{color:var(--text);font-weight:600}
 
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:14px;transition:.35s;font-weight:600;z-index:9}
+/* Rodapé */
+footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--muted);font-size:.88rem}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--text)}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:transform .35s;font-weight:500;z-index:9;max-width:calc(100% - 40px);text-align:center}
 .toast.show{transform:translateX(-50%)}
 
+/* Telemóvel */
 @media(max-width:860px){
-  .wgrid{grid-template-columns:repeat(2,1fr)}
-  .fgrid,.steps{grid-template-columns:1fr}
-  nav a.link{display:none}
+  .grid,.steps,.install-grid{grid-template-columns:1fr}
+  .priv{grid-template-columns:1fr;gap:24px}
+  .top nav a:not(.keep){display:none}
+  section{padding:44px 0}
+  .hero{padding:44px 0 40px}
 }
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.fcard{opacity:1;transform:none}}
-
-/* Parede de capas */
-.preview{max-width:1100px;margin:60px auto 0;padding:0 20px;animation:up 1s .5s both}
-.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.wall a{display:block;aspect-ratio:1;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel2);transition:transform .3s,border-color .3s,box-shadow .3s;animation:up .6s both}
-.wall a:hover{transform:translateY(-4px) scale(1.02);border-color:#3c3c58;box-shadow:0 18px 40px -16px rgba(139,92,246,.6)}
-.wall img{width:100%;height:100%;object-fit:cover;display:block}
-.more-wrap{text-align:center;margin-top:22px}
-.more-wrap .btn:disabled{opacity:.5;cursor:default;transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 
-<div class="bg" aria-hidden="true">
-  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-  <div class="grid-lines"></div>
+<div class="bg" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#"><span class="mark" aria-hidden="true"></span>Music Tracker</a>
+    <nav aria-label="Principal">
+      <a href="#funcionalidades">Funcionalidades</a>
+      <a href="#instalar" class="keep">Instalar</a>
+      <a href="privacidade.html">Privacidade</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <span class="badge"><span class="dot" aria-hidden="true"></span>Versão <span id="ver">2.39.23</span></span>
+      <h1>Avalia cada álbum <span>com critério.</span></h1>
+      <p class="lead">Pesquisa álbuns de qualquer artista e país, vê as capas e as artes e dá a cada álbum uma nota de meia em meia estrela, com a tua review.</p>
+      <div class="cta">
+        <button class="btn primary" id="btnInstall" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Instalar a app
+        </button>
+        <a class="btn" href="#instalar">Ver como instalar</a>
+      </div>
+      <p class="small" id="instStatus" hidden>A app já está instalada neste dispositivo.</p>
+      <p class="small">Funciona offline depois da primeira vez · Conta opcional</p>
+    </div>
+
+    <section aria-labelledby="capas-t" style="padding-top:8px">
+      <div class="head">
+        <span class="eyebrow">Catálogo</span>
+        <h2 id="capas-t">Em destaque</h2>
+        <p>Uma amostra de álbuns disponíveis na app. Clica numa capa para ver o álbum na loja.</p>
+      </div>
+      <div class="wall" id="wall"></div>
+      <div class="more"><button class="btn" id="more" type="button">Carregar mais capas</button></div>
+    </section>
+
+    <section id="funcionalidades" aria-labelledby="func-t">
+      <div class="head">
+        <span class="eyebrow">Funcionalidades</span>
+        <h2 id="func-t">Tudo para organizar a tua música</h2>
+        <p>Simples de usar, pensada para quem ouve música a sério.</p>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div>
+          <h3>Catálogo por país</h3>
+          <p>Escolhe o país de origem do artista e vê álbuns, EPs e singles separados em separadores.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg></div>
+          <h3>Capas e artes</h3>
+          <p>Cada álbum mostra a capa oficial e outras artes disponíveis, como verso e encarte, quando existem.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></div>
+          <h3>Notas de meia em meia estrela</h3>
+          <p>Classifica cada álbum de 0,5 a 5 estrelas e escreve a tua review. Os dados do álbum não são alterados.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <h3>Biblioteca pessoal</h3>
+          <p>Os álbuns avaliados ficam na Biblioteca, com favoritos, pesquisa, filtros e estatísticas.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></div>
+          <h3>Exportar e importar</h3>
+          <p>Leva a tua coleção para outro dispositivo com um ficheiro JSON, quando quiseres.</p>
+        </article>
+        <article class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+          <h3>Qualquer ecrã</h3>
+          <p>Layout adaptado a telemóvel, tablet e computador. Instalada, abre numa janela própria.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="como-t">
+      <div class="head">
+        <span class="eyebrow">Como funciona</span>
+        <h2 id="como-t">Três passos</h2>
+      </div>
+      <div class="steps">
+        <div class="step"><h3>Instala</h3><p>Instala a app no computador ou no telemóvel. Não é preciso criar conta.</p></div>
+        <div class="step"><h3>Pesquisa</h3><p>Procura um artista ou álbum e adiciona-o à tua coleção.</p></div>
+        <div class="step"><h3>Avalia</h3><p>Dá a nota de 0,5 a 5 estrelas e escreve a tua review.</p></div>
+      </div>
+    </section>
+
+    <section id="instalar" aria-labelledby="inst-t">
+      <div class="head">
+        <span class="eyebrow">Instalação</span>
+        <h2 id="inst-t">Instala em poucos segundos</h2>
+        <p>Escolhe o teu dispositivo. Em computadores e Android, o botão “Instalar a app” faz o resto.</p>
+      </div>
+      <div class="install-grid">
+        <div class="plat">
+          <h3>Computador</h3>
+          <p class="sub">Chrome, Edge ou outro navegador baseado em Chromium</p>
+          <ol>
+            <li>Abre esta página.</li>
+            <li>Clica em <b>Instalar a app</b>, ou no ícone de instalação na barra de endereço.</li>
+            <li>Confirma. A app abre numa janela própria.</li>
+          </ol>
+        </div>
+        <div class="plat">
+          <h3>Android</h3>
+          <p class="sub">Chrome</p>
+          <ol>
+            <li>Abre esta página no Chrome.</li>
+            <li>Toca em <b>Instalar a app</b>, ou em ⋮ e depois <b>Instalar aplicação</b>.</li>
+            <li>A app fica no ecrã principal.</li>
+          </ol>
+        </div>
+        <div class="plat">
+          <h3>iPhone e iPad</h3>
+          <p class="sub">Safari</p>
+          <ol>
+            <li>Abre esta página no <b>Safari</b>.</li>
+            <li>Toca em <b>Partilhar</b> (o quadrado com a seta).</li>
+            <li>Escolhe <b>Adicionar ao ecrã principal</b>.</li>
+          </ol>
+        </div>
+      </div>
+      <p class="note">Depois de instalada, a app funciona sem ligação à internet para o que já carregaste. As pesquisas de álbuns precisam de ligação.</p>
+    </section>
+
+    <section aria-labelledby="priv-t">
+      <div class="priv">
+        <div class="head" style="margin:0">
+          <span class="eyebrow">Privacidade</span>
+          <h2 id="priv-t">Os teus dados são teus</h2>
+          <p style="margin-top:14px">Tratamos o mínimo necessário. A política completa explica o que é guardado, para que serve e como pedir a eliminação.</p>
+          <p style="margin-top:18px"><a href="privacidade.html" style="color:var(--text);font-weight:600">Ler a política de privacidade</a></p>
+        </div>
+        <ul>
+          <li><b>No teu dispositivo:</b> a biblioteca, as avaliações e as preferências ficam no navegador.</li>
+          <li><b>Conta opcional:</b> se criares conta, guardamos o email e a data de criação. A palavra-passe nunca é guardada em texto.</li>
+          <li><b>Serviços de música:</b> as pesquisas usam catálogos públicos (iTunes, MusicBrainz e Cover Art Archive).</li>
+        </ul>
+      </div>
+    </section>
+  </main>
 </div>
-
-<nav>
-  <div class="brand"><i></i>Music Tracker</div>
-  <a class="link" href="#instalar">Instalar</a>
-</nav>
-
-<header class="hero">
-  <span class="pill"><b></b>Versão 2 · Catálogo e fotos</span>
-  <h1>Avalia cada álbum<br><span class="grad">com critério.</span></h1>
-  <p class="lead">Pesquisa álbuns de qualquer artista e género, vê as capas e as fotos, e dá-lhe uma classificação de 0,5 a 5 estrelas, com a tua review.</p>
-
-  <div class="cta">
-    <a class="btn primary" id="btnDownload" href="avaliador-albuns-v2.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg>
-      Abrir Music Tracker
-    </a>
-    <button class="btn" id="btnInstall" hidden>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg>
-      Instalar como app
-    </button>
-    <a class="btn" href="avaliador-albuns-v2.html">Abrir no navegador</a>
-  </div>
-  <p class="meta-line">Ficheiro único de ~33 KB · Funciona offline depois da primeira abertura · Sem conta</p>
-</header>
-
-<div class="preview">
-  <div class="wall" id="wall"></div>
-  <div class="more-wrap"><button class="btn" id="more" type="button">Carregar mais capas</button></div>
-</div>
-
-<section class="feat">
-  <div class="sh"><h2>Tudo o que precisas</h2><p>Simples de usar, pensada para quem ouve música a sério.</p></div>
-  <div class="fgrid">
-    <article class="fcard"><div class="ico">🔎</div><h3>Catálogo por país</h3><p>Escolhe o país de origem do artista e vê os álbuns, EPs e singles separados em separadores.</p></article>
-    <article class="fcard"><div class="ico">🖼️</div><h3>Capas e artes</h3><p>Cada álbum mostra a capa oficial e as outras artes disponíveis, como verso e encarte, quando existem.</p></article>
-    <article class="fcard"><div class="ico">🎚️</div><h3>Estrelas de 0,5 a 5</h3><p>Classifica cada álbum com meias estrelas e escreve a tua review. Só a classificação e a review, sem alterar os dados do álbum.</p></article>
-    <article class="fcard"><div class="ico">⭐</div><h3>Biblioteca pessoal</h3><p>Os álbuns avaliados ficam na aba Biblioteca, com favoritos, pesquisa e estatísticas.</p></article>
-    <article class="fcard"><div class="ico">💾</div><h3>Os teus dados ficam contigo</h3><p>Tudo é guardado no próprio navegador. Exporta e importa a coleção em JSON quando quiseres.</p></article>
-    <article class="fcard"><div class="ico">📱</div><h3>Funciona em qualquer ecrã</h3><p>Layout adaptado a telemóvel, tablet e computador. Instala como app para abrir sem barra de endereço.</p></article>
-  </div>
-</section>
-
-<section class="feat">
-  <div class="sh"><h2>Como começar</h2><p>Três passos e já estás a avaliar.</p></div>
-  <div class="steps">
-    <div class="step"><h3>Descarrega</h3><p>Clica em “Descarregar aplicação”. Fica um ficheiro HTML no teu computador.</p></div>
-    <div class="step"><h3>Abre</h3><p>Faz duplo clique no ficheiro. Abre no navegador, sem instalar nada.</p></div>
-    <div class="step"><h3>Avalia</h3><p>Pesquisa um álbum, adiciona-o à coleção e dá-lhe a tua nota.</p></div>
-  </div>
-</section>
-
-<section class="feat install" id="instalar">
-  <div class="sh"><h2>Instalação</h2><p>Escolhe a forma que preferes.</p></div>
-  <details open>
-    <summary>Usar no navegador (mais simples)</summary>
-    <p>Descarrega o ficheiro e faz duplo clique. Funciona em Chrome, Edge, Firefox e Safari. Os dados ficam guardados no navegador onde abriste a app.</p>
-  </details>
-  <details>
-    <summary>Instalar como app no computador ou telemóvel</summary>
-    <ol>
-      <li>Abre esta página no Chrome ou Edge.</li>
-      <li>Clica em <b>Instalar como app</b> (ou no ícone de instalação na barra de endereço).</li>
-      <li>A app abre numa janela própria e continua a funcionar offline.</li>
-    </ol>
-    <p>No iPhone: abre no Safari, toca em <b>Partilhar</b> e depois em <b>Adicionar ao ecrã principal</b>.</p>
-  </details>
-  <details>
-    <summary>Levar os dados para outro dispositivo</summary>
-    <p>Na app, vai à coleção e usa <b>Exportar</b>. No outro dispositivo, usa <b>Importar</b> com o ficheiro JSON.</p>
-  </details>
-</section>
 
 <footer>
-  <span>© Music Tracker</span>
-  <span>Os dados dos álbuns vêm de APIs públicas (MusicBrainz e Cover Art Archive).</span>
+  <div class="wrap">
+    <span>© Music Tracker · Versão <span class="ver-s">2.39.23</span></span>
+    <span><a href="privacidade.html">Privacidade</a></span>
+  </div>
 </footer>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* Mostrar cartões ao fazer scroll */
-const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }),{threshold:.15});
-document.querySelectorAll('.fcard').forEach((c,i)=>{ c.style.transitionDelay=(i%3)*90+'ms'; io.observe(c); });
-
-/* Registar service worker (funcionamento offline) */
+/* Registar o service worker (funcionamento offline) */
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
-/* Botão de instalação (PWA) */
-let deferred=null;
+/* Instalação */
 const btnInstall=document.getElementById('btnInstall');
-window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e; btnInstall.hidden=false; });
+const instStatus=document.getElementById('instStatus');
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+let deferred=null;
+function showInstalled(){ btnInstall.hidden=true; instStatus.hidden=false; }
+if(isStandalone()) showInstalled();
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e; btnInstall.textContent='Instalar a app'; });
+window.addEventListener('appinstalled',()=>{ deferred=null; showInstalled(); toast('App instalada'); });
 btnInstall.addEventListener('click',async()=>{
-  if(!deferred) return;
-  deferred.prompt();
-  await deferred.userChoice;
-  deferred=null; btnInstall.hidden=true;
+  if(deferred){
+    deferred.prompt();
+    const choice=await deferred.userChoice;
+    deferred=null;
+    if(choice.outcome==='accepted') return;
+  }
+  document.getElementById('instalar').scrollIntoView({behavior:'smooth'});
 });
-window.addEventListener('appinstalled',()=>{ btnInstall.hidden=true; toast('App instalada'); });
 
-/* Aviso de download */
-
+/* Aviso discreto */
 const t=document.getElementById('toast');
 let tt;
-function toast(m){ t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2200); }
+function toast(m){ t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
 
-/* Parede de capas: carrega capas reais da iTunes por artista/género */
+/* Capas reais da iTunes, por artista */
 const ARTISTS=['Radiohead','Frank Ocean','Beyoncé','Amália Rodrigues','Daft Punk','Kendrick Lamar','Bob Marley','Miles Davis','Adele','Pink Floyd','Michael Jackson','Rihanna','Coldplay','Nirvana','Sade','Stevie Wonder','Pixies','Tame Impala','Bon Iver','Amy Winehouse','Madonna','Queen','The Beatles','David Bowie','Led Zeppelin','Kanye West','Lauryn Hill','Joni Mitchell','Nina Simone','Fleetwood Mac'];
 let next=0;
 const wall=document.getElementById('wall');
@@ -241,9 +319,11 @@ const moreBtn=document.getElementById('more');
 async function loadCovers(){
   moreBtn.disabled=true; moreBtn.textContent='A carregar…';
   const terms=ARTISTS.slice(next,next+3); next+=3;
-  await Promise.all(terms.map(async t=>{
+  await Promise.all(terms.map(async term=>{
     try{
-      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(t)}&entity=album&media=music&limit=8`);
+      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),8000);
+      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&media=music&limit=8`,{signal:ctrl.signal});
+      clearTimeout(timer);
       const j=await r.json();
       j.results.forEach(x=>{
         if(!x.artworkUrl100) return;
@@ -251,7 +331,7 @@ async function loadCovers(){
         a.href=x.collectionViewUrl||'#'; a.target='_blank'; a.rel='noopener';
         a.title=`${x.collectionName} — ${x.artistName}`;
         const img=document.createElement('img');
-        img.loading='lazy'; img.alt=a.title;
+        img.loading='lazy'; img.alt=a.title; img.decoding='async';
         img.src=x.artworkUrl100.replace('100x100bb','400x400bb');
         img.onerror=()=>a.remove();
         a.appendChild(img); wall.appendChild(a);
