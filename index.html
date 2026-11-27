@@ -228,7 +228,7 @@ footer a:hover{color:var(--text)}
 <main class="wrap">
   <div class="hero">
     <div>
-      <span class="badge" data-in style="--d:0ms"><span class="dot" aria-hidden="true"></span>Versão <span id="ver">2.39.27</span></span>
+      <span class="badge" data-in style="--d:0ms"><span class="dot" aria-hidden="true"></span>Versão <span id="ver">2.39.28</span></span>
       <h1 data-in style="--d:90ms">Avalia cada álbum <span class="grad">com critério.</span></h1>
       <p class="lead" data-in style="--d:180ms">Pesquisa álbuns de qualquer artista e país, vê as capas e as artes e dá a cada álbum uma nota de meia em meia estrela, com a tua review.</p>
       <div class="cta" data-in style="--d:270ms">
@@ -392,7 +392,7 @@ footer a:hover{color:var(--text)}
 
 <footer>
   <div class="wrap">
-    <span>© Music Tracker · Versão <span class="ver-s">2.39.27</span></span>
+    <span>© Music Tracker · Versão <span class="ver-s">2.39.28</span></span>
     <a href="privacidade.html">Privacidade</a>
   </div>
 </footer>
@@ -453,68 +453,102 @@ let tt;
 function toast(m){ t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2400); }
 
 /* Capas reais da iTunes, por artista */
-const ARTISTS=['Radiohead','Frank Ocean','Beyoncé','Amália Rodrigues','Daft Punk','Kendrick Lamar','Bob Marley','Miles Davis','Adele','Pink Floyd','Michael Jackson','Rihanna','Coldplay','Nirvana','Sade','Stevie Wonder','Pixies','Tame Impala','Bon Iver','Amy Winehouse','Madonna','Queen','The Beatles','David Bowie','Led Zeppelin','Kanye West','Lauryn Hill','Joni Mitchell','Nina Simone','Fleetwood Mac'];
-/* Álbuns em destaque, sempre no topo (procurados na iTunes pelo nome do álbum e do artista) */
+/* Álbuns em destaque, sempre no topo */
 const FEATURED=[
   {name:'Goodbye & Good Riddance', artist:'Juice WRLD', term:'Juice WRLD Goodbye & Good Riddance'},
   {name:'My Beautiful Dark Twisted Fantasy', artist:'Kanye West', term:'Kanye West My Beautiful Dark Twisted Fantasy'},
   {name:'The College Dropout', artist:'Kanye West', term:'Kanye West The College Dropout'},
 ];
-const seen=new Set();
-let next=0;
+const ARTISTS=['Radiohead','Frank Ocean','Beyoncé','Amália Rodrigues','Daft Punk','Kendrick Lamar','Bob Marley','Miles Davis','Adele','Pink Floyd','Michael Jackson','Rihanna','Coldplay','Nirvana','Sade','Stevie Wonder','Pixies','Tame Impala','Bon Iver','Amy Winehouse','Madonna','Queen','The Beatles','David Bowie','Led Zeppelin','Kanye West','Lauryn Hill','Joni Mitchell','Nina Simone','Fleetwood Mac'];
+const BATCH=4, PER=8, TTL=12*3600*1000, CACHE_KEY='mt-covers-v2';
+
+/* Cache no navegador: a segunda visita aparece logo, sem esperar pela iTunes */
+let cache={};
+try{ cache=JSON.parse(localStorage.getItem(CACHE_KEY))||{}; }catch(e){ cache={}; }
+function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){} }
+const slim=x=>({n:x.collectionName, a:x.artistName, u:x.collectionViewUrl||'', i:x.artworkUrl100.replace('100x100bb','300x300bb')});
+
+async function search(term, limit){
+  const hit=cache[term];
+  if(hit && Date.now()-hit.t < TTL) return hit.r;
+  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(), 6000);
+  try{
+    const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&media=music&limit=${limit}`,{signal:ctrl.signal});
+    const j=await r.json();
+    const res=(j.results||[]).filter(x=>x.artworkUrl100).map(slim);
+    cache[term]={t:Date.now(), r:res}; saveCache();
+    return res;
+  }catch(e){ return hit ? hit.r : []; }
+  finally{ clearTimeout(timer); }
+}
+
 const wall=document.getElementById('wall');
 const moreBtn=document.getElementById('more');
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const shown=new Set();
 function addCover(x){
-  const key=x.collectionViewUrl||x.collectionId||(x.collectionName+x.artistName);
-  if(seen.has(key)) return;
-  seen.add(key);
+  if(!x || !x.u || shown.has(x.u)) return;
+  shown.add(x.u);
   const a=document.createElement('a');
-  a.href=x.collectionViewUrl||'#'; a.target='_blank'; a.rel='noopener';
-  a.title=`${x.collectionName} — ${x.artistName}`;
-  a.setAttribute('aria-label',a.title);
+  a.href=x.u; a.target='_blank'; a.rel='noopener';
+  a.title=`${x.n} — ${x.a}`; a.setAttribute('aria-label', a.title);
   const img=document.createElement('img');
-  img.alt=''; img.decoding='async'; img.loading='lazy';
+  img.alt=''; img.decoding='async'; img.loading='lazy'; img.width=300; img.height=300;
   img.onload=()=>img.classList.add('ld');
   img.onerror=()=>a.remove();
-  img.src=x.artworkUrl100.replace('100x100bb','400x400bb');
+  img.src=x.i;
   a.appendChild(img);
-  a.style.opacity='0'; a.style.transform='translate3d(0,18px,0)';
-  a.style.transition=`opacity .7s var(--ease) ${reduce?0:wall.children.length%8*60}ms, transform .7s var(--ease) ${reduce?0:wall.children.length%8*60}ms, box-shadow .5s var(--ease)`;
+  const k=wall.children.length%8*50;
+  if(!reduce){ a.style.opacity='0'; a.style.transform='translate3d(0,14px,0)'; a.style.transition=`opacity .6s var(--ease) ${k}ms, transform .6s var(--ease) ${k}ms, box-shadow .5s var(--ease)`; }
   wall.appendChild(a);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ a.style.opacity='1'; a.style.transform='none'; }));
+  if(!reduce) requestAnimationFrame(()=>requestAnimationFrame(()=>{ a.style.opacity='1'; a.style.transform='none'; }));
 }
-async function loadFeatured(){
-  await Promise.all(FEATURED.map(async f=>{
-    try{
-      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(f.term)}&entity=album&media=music&limit=10`);
-      const j=await r.json();
-      const hit=j.results.find(x=>x.artworkUrl100 && x.collectionName && x.collectionName.toLowerCase().includes(f.name.toLowerCase()) && x.artistName && x.artistName.toLowerCase().includes(f.artist.toLowerCase()));
-      if(hit) addCover(hit);
-    }catch(e){}
-  }));
+
+let nextIdx=0, busy=false;
+function setMore(state){
+  moreBtn.disabled = state!=='more';
+  moreBtn.textContent = state==='loading' ? 'A carregar…' : state==='done' ? 'Sem mais capas' : 'Carregar mais capas';
 }
-async function loadCovers(){
-  moreBtn.disabled=true; moreBtn.textContent='A carregar…';
-  const terms=ARTISTS.slice(next,next+3); next+=3;
-  await Promise.all(terms.map(async term=>{
-    try{
-      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),8000);
-      const r=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&media=music&limit=8`,{signal:ctrl.signal});
-      clearTimeout(timer);
-      const j=await r.json();
-      j.results.forEach(x=>{ if(x.artworkUrl100) addCover(x); });
-    }catch(e){}
-  }));
-  if(!wall.children.length){
-    wall.innerHTML='<p class="wall-msg">Não foi possível carregar as capas. Verifica a ligação e tenta de novo.</p>';
-  }
-  const done=next>=ARTISTS.length;
-  moreBtn.disabled=done;
-  moreBtn.textContent=done?'Sem mais capas':'Carregar mais capas';
+/* Devolve o próximo lote de álbuns e avança */
+async function takeBatch(){
+  const terms=ARTISTS.slice(nextIdx, nextIdx+BATCH); nextIdx+=BATCH;
+  const lists=await Promise.all(terms.map(t=>search(t, PER)));
+  return lists.flat();
 }
-moreBtn.addEventListener('click',loadCovers);
-(async()=>{ await loadFeatured(); await loadCovers(); })();
+function prefetchNext(){
+  ARTISTS.slice(nextIdx, nextIdx+BATCH).forEach(t=>search(t, PER));
+}
+async function loadMore(){
+  if(busy || nextIdx>=ARTISTS.length) return;
+  busy=true; setMore('loading');
+  const items=await takeBatch();
+  items.forEach(addCover);
+  prefetchNext();
+  busy=false;
+  if(nextIdx>=ARTISTS.length) setMore('done');
+  else setMore('more');
+  if(!wall.children.length) wall.innerHTML='<p class="wall-msg">Não foi possível carregar as capas. Verifica a ligação e tenta de novo.</p>';
+}
+
+async function init(){
+  // destaques e primeiro lote pedidos ao mesmo tempo; os destaques são mostrados primeiro
+  const featP=Promise.all(FEATURED.map(f=>search(f.term,10).then(list=>list.find(x=>x.n && x.a &&
+    x.n.toLowerCase().includes(f.name.toLowerCase()) && x.a.toLowerCase().includes(f.artist.toLowerCase())))));
+  const firstP=takeBatch();
+  const [feat, first]=await Promise.all([featP, firstP]);
+  feat.forEach(addCover);
+  first.forEach(addCover);
+  prefetchNext();
+  setMore(nextIdx>=ARTISTS.length ? 'done' : 'more');
+  if(!wall.children.length) wall.innerHTML='<p class="wall-msg">Não foi possível carregar as capas. Verifica a ligação e tenta de novo.</p>';
+}
+
+moreBtn.addEventListener('click', loadMore);
+/* Carrega sozinho quando o botão se aproxima do ecrã (scroll contínuo) */
+if('IntersectionObserver' in window){
+  new IntersectionObserver(es=>{ if(es[0].isIntersecting && !busy && !moreBtn.disabled) loadMore(); },{rootMargin:'0px 0px 400px 0px'}).observe(moreBtn);
+}
+init();
 </script>
 </body>
 </html>
